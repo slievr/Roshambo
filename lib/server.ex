@@ -48,12 +48,13 @@ defmodule Rochambo.Server do
     {:reply, game.players, game}
   end
 
-  def handle_call({:join, player_name}, from, game = %GameState{}) do
-    player = %Player{name: player_name, identifier: from}
+  def handle_call({:join, player_name}, {pid, _ref}, game = %GameState{}) do
+    player = %Player{name: player_name, identifier: pid}
 
     case add_player(player, game) do
       {:ok, new_game_state} ->
         {:reply, :joined, new_game_state}
+
       {:error, reason} ->
         {:reply, {:error, reason}, game}
     end
@@ -66,21 +67,38 @@ defmodule Rochambo.Server do
   end
 
   defp add_player(player, game) do
-    with true <- can_join?(game) do
+    with :ok <- game_not_full(game),
+         :ok <- player_not_in_game(player, game) do
       {:ok, %GameState{game | players: game.players ++ [player]}}
     else
-      {false, reason} ->
+      {:error, reason} ->
         {:error, reason}
     end
   end
 
-  defp can_join?(game) do
+  defp game_not_full(game) do
     cond do
       length(game.players) == 2 ->
-        false
+        {:error, "Already full!"}
+
       true ->
-        true
+        :ok
     end
   end
 
+  defp player_not_in_game(player = %Player{}, game = %GameState{}) do
+    in_game =
+      game.players
+      |> Enum.find_value(false, fn game_player = %Player{} ->
+        game_player.identifier == player.identifier
+      end)
+
+    case in_game do
+      false ->
+        :ok
+
+      true ->
+        {:error, "Already joined!"}
+    end
+  end
 end
