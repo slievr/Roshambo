@@ -1,15 +1,15 @@
 defmodule Rochambo.Server do
   use GenServer
 
-  alias Rochambo.GameState
+  alias Rochambo.{GameState, Player}
 
   # API
   def status() do
     GenServer.call(router(), :get_status)
   end
 
-  def join(_name) do
-    {:ok, "not implemented"}
+  def join(name) do
+    GenServer.call(router(), {:join, name})
   end
 
   def play(_move) do
@@ -48,14 +48,39 @@ defmodule Rochambo.Server do
     {:reply, game.players, game}
   end
 
+  def handle_call({:join, player_name}, from, game = %GameState{}) do
+    player = %Player{name: player_name, identifier: from}
+
+    case add_player(player, game) do
+      {:ok, new_game_state} ->
+        {:reply, :joined, new_game_state}
+      {:error, reason} ->
+        {:reply, {:error, reason}, game}
+    end
+  end
+
   # Casts
 
-  def handle_cast({:join, _player_name}, game = %GameState{}) do
+  def handle_cast({:play, _player_move}, game = %GameState{}) do
     {:noreply, game}
   end
 
-   def handle_cast({:play, _player_move}, game = %GameState{}) do
-    {:noreply, game}
+  defp add_player(player, game) do
+    case can_join?(game) do
+      true ->
+        {:ok, %GameState{game | players: game.players ++ [player]}}
+      false ->
+        {:error, "Already full!"}
+    end
+  end
+
+  defp can_join?(game) do
+    cond do
+      length(game.players) == 2 ->
+        false
+      true ->
+        true
+    end
   end
 
 end
