@@ -69,11 +69,16 @@ defmodule Rochambo.Server do
   defp add_player(player, game) do
     with :ok <- game_not_full(game),
          :ok <- player_not_in_game(player, game) do
-      {:ok, %GameState{game | players: game.players ++ [player]}}
+      game = %GameState{game | players: game.players ++ [player]}
+      update_gamestate(game)
     else
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp remove_player(_player, game) do
+    update_gamestate(game)
   end
 
   defp game_not_full(game) do
@@ -99,6 +104,15 @@ defmodule Rochambo.Server do
 
       true ->
         {:error, "Already joined!"}
+    end
+  end
+
+  defp update_gamestate(game = %GameState{}) do
+    case length(game.players) do
+        2 ->
+          {:ok, %GameState{game | state: :waiting_for_gambits}}
+        _ ->
+          {:ok, %GameState{game | state: :need_players}}
     end
   end
 end
