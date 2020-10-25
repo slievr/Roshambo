@@ -45,7 +45,12 @@ defmodule Rochambo.Server do
   end
 
   def handle_call(:get_players, _from, game = %GameState{}) do
-    {:reply, game.players, game}
+    player_names = game.players
+    |> Enum.map(fn player = %Player{} ->
+      player.name
+    end)
+
+    {:reply, player_names, game}
   end
 
   def handle_call({:join, player_name}, {pid, _ref}, game = %GameState{}) do
