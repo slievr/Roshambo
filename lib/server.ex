@@ -66,11 +66,11 @@ defmodule Rochambo.Server do
   end
 
   defp add_player(player, game) do
-    case can_join?(game) do
-      true ->
-        {:ok, %GameState{game | players: game.players ++ [player]}}
-      false ->
-        {:error, "Already full!"}
+    with true <- can_join?(game) do
+      {:ok, %GameState{game | players: game.players ++ [player]}}
+    else
+      {false, reason} ->
+        {:error, reason}
     end
   end
 
