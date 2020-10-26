@@ -3,46 +3,92 @@ defmodule Rochambo.Server do
 
   alias Rochambo.{GameState, Player}
 
+  @registry Rochambo.Registry
+  @supervisor Rochambo.GameSupervisor
+  @default_game_name "default"
+
   # API
+
+  def status(game_name) do
+    GenServer.call(router(game_name), :get_status)
+  end
+
   def status() do
     GenServer.call(router(), :get_status)
+  end
+
+  def join(game_name, name) do
+    GenServer.call(router(game_name), {:join, name})
   end
 
   def join(name) do
     GenServer.call(router(), {:join, name})
   end
 
-  def play(move) do
-    case GenServer.call(router(), {:play, move}) do
+  def play(game_name, move) do
+    case GenServer.call(router(game_name), {:play, move}) do
       :ok ->
-        play()
+        resolve_round()
     end
   end
 
-  def play() do
-    case GenServer.call(router(), :resolve_round) do
+  def play(move) do
+    case GenServer.call(router(), {:play, move}) do
+      :ok ->
+        resolve_round()
+    end
+  end
+
+  def resolve_round(game_name) do
+    case GenServer.call(router(game_name), :resolve_round) do
       {:ok, msg} ->
         msg
 
       :pending ->
         Process.sleep(300)
-        play()
+        resolve_round()
 
       {:error, msg} ->
         {:error, msg}
     end
   end
 
+  def resolve_round() do
+    case GenServer.call(router(), :resolve_round) do
+      {:ok, msg} ->
+        msg
+
+      :pending ->
+        Process.sleep(300)
+        resolve_round()
+
+      {:error, msg} ->
+        {:error, msg}
+    end
+  end
+
+  def scores(game_name) do
+    GenServer.call(router(game_name), :get_scores)
+  end
+
   def scores() do
     GenServer.call(router(), :get_scores)
+  end
+
+  def get_players(game_name) do
+    GenServer.call(router(game_name), :get_players)
   end
 
   def get_players() do
     GenServer.call(router(), :get_players)
   end
 
+  defp router(game_name) do
+    {:via, Registry, {@registry, game_name}}
+  end
+
   defp router() do
-    __MODULE__
+    {:via, Registry, {@registry, @default_game_name}}
   end
 
   def debug() do
@@ -50,8 +96,30 @@ defmodule Rochambo.Server do
   end
 
   # SERVER
+
+  def start(game_name) do
+    opts = [
+      game_name: game_name
+    ]
+
+    DynamicSupervisor.start_child(@supervisor, {__MODULE__, opts})
+  end
+
+  def start() do
+    opts = [
+      game_name: @default_game_name
+    ]
+
+    DynamicSupervisor.start_child(@supervisor, {__MODULE__, opts})
+  end
+
+  def start_link(opts) do
+    {game_name, opts} = Keyword.pop!(opts, :game_name)
+    GenServer.start_link(__MODULE__, opts, name: router(game_name))
+  end
+
   def start_link() do
-    GenServer.start_link(router(), [], name: router())
+    GenServer.start_link(__MODULE__, [], name: router())
   end
 
   def init(_opts) do
@@ -64,7 +132,7 @@ defmodule Rochambo.Server do
     {:reply, game.state, game}
   end
 
-   def handle_call(:get_scores, _from, game = %GameState{}) do
+  def handle_call(:get_scores, _from, game = %GameState{}) do
     {:reply, GameState.get_player_scores(game), game}
   end
 
