@@ -76,5 +76,9 @@ defmodule RochamboTest do
     assert {:error, _} = Server.start("test2")
     assert {:error, _} = Server.start("test3")
 
+    Server.kill("test3")
+    assert {:ok, _pid} = Server.start("test3")
+    assert length(Server.get_players("test3")) == 0
+
   end
 end

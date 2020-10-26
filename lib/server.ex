@@ -122,6 +122,14 @@ defmodule Rochambo.Server do
     GenServer.start_link(__MODULE__, [], name: router())
   end
 
+  def kill(game_name) do
+    DynamicSupervisor.terminate_child(@supervisor, Registry.whereis_name({@registry, game_name}))
+  end
+
+  def kill() do
+    DynamicSupervisor.terminate_child(@supervisor, Registry.whereis_name({@registry, @default_game_name}))
+  end
+
   def init(_opts) do
     {:ok, %GameState{}}
   end
