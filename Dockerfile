@@ -1,7 +1,7 @@
 FROM elixir:1.10.4 as test
 
 WORKDIR /opt/
-copy . .
+COPY . .
 
 RUN mix local.rebar --force \
   && mix local.hex --if-missing --force \
@@ -13,7 +13,7 @@ CMD ["mix", "test"]
 FROM elixir:1.10.4 as build
 
 WORKDIR /opt
-copy . .
+COPY . .
 
 RUN mix local.rebar --force \
   && mix local.hex --if-missing --force \
