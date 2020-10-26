@@ -91,7 +91,7 @@ defmodule Rochambo.Server do
   end
 
   def handle_call(:resolve_round, _from, game = %GameState{}) do
-    case resolve_game(game) do
+    case GameState.resolve_game(game) do
       {:ok, msg, game_update} ->
         {:reply, msg, game_update}
 
@@ -101,26 +101,5 @@ defmodule Rochambo.Server do
       {:error, msg} ->
         {:reply, {:error, msg}, game}
     end
-  end
-
-
-  defp resolve_game(game = %GameState{}) do
-    with true <- GameState.both_players_moved?(game) do
-      GameState.determine_winner(game)
-    else
-      false ->
-        {:pending, game}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp reset_players_moves(game = %GameState{}) do
-    %GameState{
-      game
-      | player_one: Player.reset_move(game.player_one),
-        player_two: Player.reset_move(game.player_two)
-    }
   end
 end

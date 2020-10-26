@@ -49,6 +49,18 @@ defmodule Rochambo.GameState do
     end
   end
 
+   def resolve_game(game = %Rochambo.GameState{}) do
+    with true <- both_players_moved?(game) do
+      determine_winner(game)
+    else
+      false ->
+        {:pending, game}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   defp add_new_player(game, player = %Player{}) do
     cond do
       game.player_one == nil ->
