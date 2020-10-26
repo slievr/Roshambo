@@ -127,7 +127,10 @@ defmodule Rochambo.Server do
   end
 
   def kill() do
-    DynamicSupervisor.terminate_child(@supervisor, Registry.whereis_name({@registry, @default_game_name}))
+    DynamicSupervisor.terminate_child(
+      @supervisor,
+      Registry.whereis_name({@registry, @default_game_name})
+    )
   end
 
   def init(_opts) do

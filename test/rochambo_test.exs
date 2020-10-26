@@ -40,24 +40,6 @@ defmodule RochamboTest do
     |> Task.await()
   end
 
-  def other_player() do
-    name = "michael"
-    Server.join(name)
-    # Ensure other process has had the opportunity to join
-    Process.sleep(100)
-
-    assert Server.play(:scissors) =~ "you lost!"
-    assert Server.scores() == %{"bob" => 1, "michael" => 0}
-
-    Process.sleep(100)
-
-    assert Server.play(:paper) =~ "draw"
-  end
-
-  def third_wheel() do
-    assert Server.join("henry") == {:error, "Already full!"}
-  end
-
   test "multiple servers" do
     assert {:ok, pid1} = Server.start("test2")
     assert {:ok, pid2} = Server.start("test3")
@@ -79,6 +61,23 @@ defmodule RochamboTest do
     Server.kill("test3")
     assert {:ok, _pid} = Server.start("test3")
     assert length(Server.get_players("test3")) == 0
+  end
 
+  def other_player() do
+    name = "michael"
+    Server.join(name)
+    # Ensure other process has had the opportunity to join
+    Process.sleep(100)
+
+    assert Server.play(:scissors) =~ "you lost!"
+    assert Server.scores() == %{"bob" => 1, "michael" => 0}
+
+    Process.sleep(100)
+
+    assert Server.play(:paper) =~ "draw"
+  end
+
+  def third_wheel() do
+    assert Server.join("henry") == {:error, "Already full!"}
   end
 end
