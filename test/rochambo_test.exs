@@ -57,4 +57,24 @@ defmodule RochamboTest do
   def third_wheel() do
     assert Server.join("henry") == {:error, "Already full!"}
   end
+
+  test "multiple servers" do
+    assert {:ok, pid1} = Server.start("test2")
+    assert {:ok, pid2} = Server.start("test3")
+
+    assert pid1 != pid2
+
+    Server.join("test2", "server1player")
+
+    Server.join("test3", "server2player")
+
+    assert Server.get_players("test2") != Server.get_players("test3")
+
+    assert length(Server.get_players("test2")) == 1
+    assert length(Server.get_players("test3")) == 1
+
+    assert {:error, _} = Server.start("test2")
+    assert {:error, _} = Server.start("test3")
+
+  end
 end
