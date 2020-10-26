@@ -1,10 +1,29 @@
 defmodule Rochambo.GameState do
   alias Rochambo.Player
 
-  defstruct score: nil, player_one: nil, player_two: nil, round_winners: [], state: :need_players
+  defstruct player_one: nil, player_two: nil, round_winners: [], state: :need_players
 
-  def from_map(map) when is_map(map) do
-    struct(__MODULE__, map)
+  def get_player_names(%Rochambo.GameState{player_one: %Player{name: name1}, player_two: %Player{name: name2}}) do
+    [name1, name2]
+  end
+
+  def get_player_names(%Rochambo.GameState{player_one: nil, player_two: %Player{name: name2}}) do
+    [name2]
+  end
+
+  def get_player_names(%Rochambo.GameState{player_one: %Player{name: name1}, player_two: nil}) do
+    [name1]
+  end
+
+  def get_player_names(%Rochambo.GameState{player_one: nil, player_two: nil}) do
+    []
+  end
+  def set_player(game, player, slot) do
+    Map.put(game, slot, player)
+  end
+
+  def add_round_winner(game, pid) do
+    %Rochambo.GameState{game | round_winners: game.round_winners ++ [pid]}
   end
 
   def add_player(game = %Rochambo.GameState{}, player = %Player{}) do
@@ -21,6 +40,15 @@ defmodule Rochambo.GameState do
     end
   end
 
+  def process_winner(game, pid) do
+    with {:ok, player, slot} <- get_player_by_pid(game, pid),
+         player_scored <- Player.increase_score(player),
+         game <- set_player(game, slot, player_scored),
+         game <- add_round_winner(game, pid) do
+      game
+    end
+  end
+
   defp add_new_player(game, player = %Player{}) do
     cond do
       game.player_one == nil ->
@@ -30,15 +58,15 @@ defmodule Rochambo.GameState do
         {:ok, %Rochambo.GameState{game | player_two: player}}
 
       true ->
-        {:error, "no player with pid"}
+        {:error, "Already full!"}
     end
   end
 
-  def has_player_one?(%Rochambo.GameState{player_one: player}) do
+  defp has_player_one?(%Rochambo.GameState{player_one: player}) do
     !is_nil(player)
   end
 
-  def has_player_two?(%Rochambo.GameState{player_two: player}) do
+  defp has_player_two?(%Rochambo.GameState{player_two: player}) do
     !is_nil(player)
   end
 
@@ -46,6 +74,9 @@ defmodule Rochambo.GameState do
         game = %Rochambo.GameState{player_one: player_one, player_two: player_two},
         pid
       ) do
+
+    {game, pid} |> IO.inspect(label: "find pid")
+
     cond do
       has_player_one?(game) && player_one.identifier == pid ->
         {:ok, player_one, :player_one}
@@ -57,7 +88,6 @@ defmodule Rochambo.GameState do
         {:error, "no player with pid"}
     end
   end
-
 
   def game_not_full(game = %Rochambo.GameState{}) do
     cond do
@@ -96,11 +126,13 @@ defmodule Rochambo.GameState do
     %Rochambo.GameState{game | state: state}
   end
 
-  def determine_winner(game = %Rochambo.GameState{}) do
-    determine_winner(game.player_one, game.player_two)
-  end
-
-  defp determine_winner(player1 = %Player{}, player2 = %Player{}) do
+  def determine_winner(
+        game = %Rochambo.GameState{
+          player_one: %Player{identifier: id1, current_move: move1},
+          player_two: %Player{identifier: id2, current_move: move2}
+        }
+      )
+      when not is_nil(move1) and not is_nil(move2) do
     win_list = [
       {:rock, :scissors},
       {:scissors, :paper},
@@ -108,14 +140,16 @@ defmodule Rochambo.GameState do
     ]
 
     cond do
-      {player1.current_move, player2.current_move} in win_list ->
-        {:ok, player1.identifier}
+      {move1, move2} in win_list ->
+        game_state = process_winner(game, id1)
+        {:ok, id1, game_state}
 
-      {player2.current_move, player1.current_move} in win_list ->
-        {:ok, player2.identifier}
+      {move2, move1} in win_list ->
+        game_state = process_winner(game, id2)
+        {:ok, id2, game_state}
 
-      player2.current_move == player1.current_move ->
-        {:ok, nil}
+      move1 == move2 ->
+        {:ok, nil, game}
     end
   end
 

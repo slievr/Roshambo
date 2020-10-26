@@ -13,12 +13,23 @@ defmodule Rochambo.Server do
   end
 
   def play(move) do
-    GenServer.cast(router(), {:play, move, System.get_pid()})
+    GenServer.call(router(), {:play, move})
 
     play()
   end
 
   def play() do
+    case GenServer.call(router(), :resolve_round) do
+      {:ok, msg} ->
+        msg
+
+      :pending ->
+        Process.sleep(300)
+        play()
+
+      {:error, msg} ->
+        {:error, msg}
+    end
   end
 
   def scores() do
@@ -53,7 +64,7 @@ defmodule Rochambo.Server do
   end
 
   def handle_call(:get_players, _from, game = %GameState{}) do
-    {:reply, [game.player_one, game.player_two], game}
+    {:reply, GameState.get_player_names(game), game}
   end
 
   def handle_call({:join, player_name}, {pid, _ref}, game = %GameState{}) do
@@ -72,25 +83,34 @@ defmodule Rochambo.Server do
     {:reply, game, game}
   end
 
-  # Casts
-
-  def handle_cast({:play, player_move, pid}, game = %GameState{}) do
+   def handle_call({:play, player_move}, {pid, _ref}, game = %GameState{}) do
     {:ok, player, slot} = GameState.get_player_by_pid(game, pid)
     moved_player = Player.set_move(player, player_move)
-    updated_game_state = Map.put(game, slot, moved_player)
 
-    {:noreply, GameState.from_map(updated_game_state)}
+    {:reply, :ok, GameState.set_player(game, moved_player, slot)}
   end
 
-  defp remove_player(_player, game) do
-    GameState.update_gamestate(game)
+  def handle_call(:resolve_round, _from, game = %GameState{}) do
+    case resolve_game(game) do
+      {:ok, msg, game_update} ->
+        {:reply, msg, game_update}
+
+      {:pending, game_update} ->
+        {:reply, :pending, game_update}
+
+      {:error, msg} ->
+        {:reply, {:error, msg}, game}
+    end
   end
+
 
   defp resolve_game(game = %GameState{}) do
-    with true <- GameState.both_players_moved?(game),
-         {:ok, pid} <- GameState.determine_winner(game) do
-      %GameState{game | round_winners: game.round_winners ++ [{pid}]}
+    with true <- GameState.both_players_moved?(game) do
+      GameState.determine_winner(game)
     else
+      false ->
+        {:pending, game}
+
       {:error, reason} ->
         {:error, reason}
     end
