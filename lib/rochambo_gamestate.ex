@@ -43,7 +43,7 @@ defmodule Rochambo.GameState do
     %{name1 => score1}
   end
 
-  def get_player_names(%Rochambo.GameState{player_one: nil, player_two: nil}) do
+  def get_player_scores(%Rochambo.GameState{player_one: nil, player_two: nil}) do
     %{}
   end
 
