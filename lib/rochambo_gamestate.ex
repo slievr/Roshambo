@@ -138,7 +138,7 @@ defmodule Rochambo.GameState do
     %Rochambo.GameState{game | state: state}
   end
 
-  def determine_winner(
+  defp determine_winner(
         game = %Rochambo.GameState{
           player_one: %Player{identifier: id1, current_move: move1},
           player_two: %Player{identifier: id2, current_move: move2}

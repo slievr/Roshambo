@@ -45,7 +45,7 @@ defmodule RochamboTest.GameState do
       state: :waiting_for_gambits
     }
 
-    assert {:ok, "1", _game} = GameState.determine_winner(state)
+    assert {:ok, "1", _game} = GameState.resolve_game(state)
   end
 
   test "set_player sets player at slot to player" do
