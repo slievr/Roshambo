@@ -13,9 +13,10 @@ defmodule Rochambo.Server do
   end
 
   def play(move) do
-    GenServer.call(router(), {:play, move})
-
-    play()
+    case GenServer.call(router(), {:play, move}) do
+      :ok ->
+        play()
+    end
   end
 
   def play() do
@@ -33,7 +34,7 @@ defmodule Rochambo.Server do
   end
 
   def scores() do
-    {:ok, "not implemented"}
+    GenServer.call(router(), :get_scores)
   end
 
   def get_players() do
@@ -63,6 +64,10 @@ defmodule Rochambo.Server do
     {:reply, game.state, game}
   end
 
+   def handle_call(:get_scores, _from, game = %GameState{}) do
+    {:reply, GameState.get_player_scores(game), game}
+  end
+
   def handle_call(:get_players, _from, game = %GameState{}) do
     {:reply, GameState.get_player_names(game), game}
   end
@@ -83,17 +88,19 @@ defmodule Rochambo.Server do
     {:reply, game, game}
   end
 
-   def handle_call({:play, player_move}, {pid, _ref}, game = %GameState{}) do
+  def handle_call({:play, player_move}, {pid, _ref}, game = %GameState{}) do
     {:ok, player, slot} = GameState.get_player_by_pid(game, pid)
+
+    {pid, player_move} |> IO.inspect(label: "pid")
     moved_player = Player.set_move(player, player_move)
 
-    {:reply, :ok, GameState.set_player(game, moved_player, slot)}
+    {:reply, :ok, GameState.set_player(game, moved_player, slot) |> IO.inspect(label: "game")}
   end
 
-  def handle_call(:resolve_round, _from, game = %GameState{}) do
-    case GameState.resolve_game(game) do
+  def handle_call(:resolve_round, {pid, _ref}, game = %GameState{}) do
+    case GameState.resolve_game(game, pid) do
       {:ok, msg, game_update} ->
-        {:reply, msg, game_update}
+        {:reply, {:ok, msg}, game_update}
 
       {:pending, game_update} ->
         {:reply, :pending, game_update}
