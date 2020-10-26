@@ -88,7 +88,7 @@ defmodule Rochambo.GameState do
     end
   end
 
-  defp add_new_player(game, player = %Player{}) do
+  def add_new_player(game, player = %Player{}) do
     cond do
       game.state == :waiting_for_gambits ->
         {:error, "Already full!"}
@@ -102,14 +102,6 @@ defmodule Rochambo.GameState do
       true ->
         {:error, "Already full!"}
     end
-  end
-
-  defp has_player_one?(%Rochambo.GameState{player_one: player}) do
-    !is_nil(player)
-  end
-
-  defp has_player_two?(%Rochambo.GameState{player_two: player}) do
-    !is_nil(player)
   end
 
   def get_player_by_pid(
@@ -156,6 +148,14 @@ defmodule Rochambo.GameState do
         player_two: %Player{current_move: move2}
       }) do
     move1 != nil && move2 != nil
+  end
+
+  defp has_player_one?(%Rochambo.GameState{player_one: player}) do
+    !is_nil(player)
+  end
+
+  defp has_player_two?(%Rochambo.GameState{player_two: player}) do
+    !is_nil(player)
   end
 
   defp update_gamestate(game = %Rochambo.GameState{}) do
