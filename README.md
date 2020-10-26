@@ -19,18 +19,18 @@ The server `Rochambo.Server` exposes the following functions:
 
 - `status/0` return the current state of the game one of `[:need_players, :waiting_for_gambits]`
 - `join/1` enters the game and binds process to player slot
-- `play/1` plays the move and waits for round to resolve
+- `play/1` plays the move and returns when round resolves
 - `scores/0` returns the score for the game
-- `players/0` returns the player names
+- `get_players/0` returns the player names
 
 
 Mutliple game servers can be run twice the following api calls allow for the server name as the first arguemnt
 
 - `status/1` return the current state of the game one of `[:need_players, :waiting_for_gambits]`
 - `join/2` enters the game and binds process to player slot
-- `play/2` plays the move and waits for round to resolve
+- `play/2` plays the move and returns when round resolves
 - `scores/1` returns the score for the game
-- `players/1` returns the player names
+- `get_players/1` returns the player names
 
 It's also possible to close down a game server using the following
 
