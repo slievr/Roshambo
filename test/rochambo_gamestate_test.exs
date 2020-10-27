@@ -209,7 +209,6 @@ defmodule RochamboTest.GameState do
     assert {:ok, "you lost!", _game} = GameState.get_player_outcome(game, "2")
   end
 
-  @tag :me
   test "make_player_move/2 move is set" do
     state = %GameState{
       player_one: %Player{
