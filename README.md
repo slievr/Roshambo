@@ -23,7 +23,7 @@ The server `Rochambo.Server` exposes the following functions:
 - `scores/0` returns the score for the game
 - `get_players/0` returns the player names
 
-Mutliple game servers can be run twice the following api calls allow for the server name as the first arguemnt
+Mutliple game servers can be run, the following api calls allow for the game name as the first arguemnt
 
 - `status/1` return the current state of the game one of `[:need_players, :waiting_for_gambits]`
 - `join/2` enters the game and binds process to player slot
