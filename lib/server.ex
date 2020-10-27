@@ -28,39 +28,37 @@ defmodule Rochambo.Server do
   def play(game_name, move) do
     case GenServer.call(router(game_name), {:play, move}) do
       :ok ->
-        resolve_round()
+        retrieve_outcome(game_name)
     end
   end
 
   def play(move) do
     case GenServer.call(router(), {:play, move}) do
       :ok ->
-        resolve_round()
+        retrieve_outcome()
     end
   end
 
-  def resolve_round(game_name) do
-    case GenServer.call(router(game_name), :resolve_round) do
+  defp retrieve_outcome(game_name) do
+    case GenServer.call(router(game_name), :get_outcome) do
       {:ok, msg} ->
         msg
 
       :pending ->
-        Process.sleep(300)
-        resolve_round()
+        retrieve_outcome(game_name)
 
       {:error, msg} ->
         {:error, msg}
     end
   end
 
-  def resolve_round() do
-    case GenServer.call(router(), :resolve_round) do
+  defp retrieve_outcome() do
+    case GenServer.call(router(), :get_outcome) do
       {:ok, msg} ->
         msg
 
       :pending ->
-        Process.sleep(300)
-        resolve_round()
+        retrieve_outcome()
 
       {:error, msg} ->
         {:error, msg}
@@ -168,16 +166,17 @@ defmodule Rochambo.Server do
   end
 
   def handle_call({:play, player_move}, {pid, _ref}, game = %GameState{}) do
-    {:ok, player, slot} = GameState.get_player_by_pid(game, pid)
+    case game |> GameState.make_player_move(player_move, pid) do
+      {:ok, game} ->
+        {:reply, :ok, game}
 
-    {pid, player_move} |> IO.inspect(label: "pid")
-    moved_player = Player.set_move(player, player_move)
-
-    {:reply, :ok, GameState.set_player(game, moved_player, slot) |> IO.inspect(label: "game")}
+      {:error, msg} ->
+        {:error, msg}
+    end
   end
 
-  def handle_call(:resolve_round, {pid, _ref}, game = %GameState{}) do
-    case GameState.resolve_game(game, pid) do
+  def handle_call(:get_outcome, {pid, _ref}, game = %GameState{}) do
+    case GameState.get_player_outcome(game, pid) do
       {:ok, msg, game_update} ->
         {:reply, {:ok, msg}, game_update}
 

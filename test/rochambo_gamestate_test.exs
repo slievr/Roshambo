@@ -14,13 +14,13 @@ defmodule RochamboTest.GameState do
       player_one: %Player{
         name: "test",
         identifier: "1",
-        current_move: :paper,
+        move: :paper,
         score: 0
       },
       player_two: %Player{
         name: "test2",
         identifier: "2",
-        current_move: :rock,
+        move: :rock,
         score: 0
       }
     }
@@ -33,19 +33,21 @@ defmodule RochamboTest.GameState do
       player_one: %Player{
         name: "test",
         identifier: "1",
-        current_move: :paper,
+        move: :paper,
         score: 0
       },
       player_two: %Player{
         name: "test2",
         identifier: "2",
-        current_move: :rock,
+        move: :rock,
         score: 0
       },
       state: :waiting_for_gambits
     }
 
-    assert {:ok, "you won!", game} = GameState.resolve_game(state, "1")
+    game = GameState.determine_outcome(state)
+
+    assert {:ok, "you won!", game} = GameState.get_player_outcome(game, "1")
     assert %{"test" => 1, "test2" => 0} = GameState.get_player_scores(game)
   end
 
@@ -55,7 +57,7 @@ defmodule RochamboTest.GameState do
     player = %Player{
       name: "test2",
       identifier: "2",
-      current_move: :rock,
+      move: :rock,
       score: 0
     }
 
@@ -94,13 +96,13 @@ defmodule RochamboTest.GameState do
       player_one: %Player{
         name: "test",
         identifier: "1",
-        current_move: :paper,
+        move: :paper,
         score: 0
       },
       player_two: %Player{
         name: "test2",
         identifier: "2",
-        current_move: :rock,
+        move: :rock,
         score: 0
       },
       state: :waiting_for_gambits
@@ -120,7 +122,7 @@ defmodule RochamboTest.GameState do
       player_one: %Player{
         name: "test",
         identifier: "1",
-        current_move: :paper,
+        move: :paper,
         score: 0
       }
     }
@@ -133,7 +135,7 @@ defmodule RochamboTest.GameState do
       player_two: %Player{
         name: "test2",
         identifier: "1",
-        current_move: :paper,
+        move: :paper,
         score: 0
       }
     }
@@ -146,13 +148,13 @@ defmodule RochamboTest.GameState do
       player_one: %Player{
         name: "test",
         identifier: "1",
-        current_move: :paper,
+        move: :paper,
         score: 0
       },
       player_two: %Player{
         name: "test2",
         identifier: "2",
-        current_move: :rock,
+        move: :rock,
         score: 0
       },
       state: :waiting_for_gambits
@@ -161,46 +163,73 @@ defmodule RochamboTest.GameState do
     assert ["test", "test2"] = GameState.get_player_names(state)
   end
 
-  test "reset player moves" do
-    state = %GameState{
-      player_one: %Player{
-        name: "test",
-        identifier: "1",
-        current_move: :paper,
-        score: 0
-      },
-      player_two: %Player{
-        name: "test2",
-        identifier: "2",
-        current_move: :rock,
-        score: 0
-      },
-      state: :waiting_for_gambits
-    }
-
-    assert %Rochambo.GameState{
-             player_one: %Player{current_move: nil},
-             player_two: %Player{current_move: nil}
-           } = GameState.reset_player_moves(state)
-  end
-
   test "get player scores when full" do
     state = %GameState{
       player_one: %Player{
         name: "test",
         identifier: "1",
-        current_move: :paper,
+        move: :paper,
         score: 0
       },
       player_two: %Player{
         name: "test2",
         identifier: "2",
-        current_move: :rock,
+        move: :rock,
         score: 1
       },
       state: :waiting_for_gambits
     }
 
     assert %{"test" => 0, "test2" => 1} = GameState.get_player_scores(state)
+  end
+
+  test "get win race condition" do
+    state = %GameState{
+      player_one: %Player{
+        name: "test",
+        identifier: "1",
+        move: :paper,
+        score: 0
+      },
+      player_two: %Player{
+        name: "test2",
+        identifier: "2",
+        move: :rock,
+        score: 0
+      },
+      state: :waiting_for_gambits
+    }
+
+    game = GameState.determine_outcome(state)
+
+    assert {:ok, "you won!", game} = GameState.get_player_outcome(game, "1")
+
+    game = GameState.determine_outcome(game)
+
+    assert {:ok, "you lost!", _game} = GameState.get_player_outcome(game, "2")
+  end
+
+  @tag :me
+  test "make_player_move/2 move is set" do
+    state = %GameState{
+      player_one: %Player{
+        name: "test",
+        identifier: "1",
+        move: nil,
+        score: 0
+      },
+      player_two: %Player{
+        name: "test2",
+        identifier: "2",
+        move: nil,
+        score: 0
+      },
+      state: :waiting_for_gambits
+    }
+
+    move = :rock
+
+    assert {:ok, %GameState{player_one: %Player{move: ^move}}} =
+             GameState.make_player_move(state, move, "1")
   end
 end

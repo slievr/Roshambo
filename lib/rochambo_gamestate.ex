@@ -69,22 +69,20 @@ defmodule Rochambo.GameState do
     end
   end
 
-  def reset_player_moves(game = %Rochambo.GameState{player_one: %Player{}, player_two: %Player{}}) do
-    game
-    |> set_player(Player.reset_move(game.player_one), :player_one)
-    |> set_player(Player.reset_move(game.player_two), :player_two)
-  end
+  def make_player_move(game, player_move, pid) do
+    case get_player_by_pid(game, pid) do
+      {:ok, player, slot} ->
+        moved_player = Player.set_move(player, player_move)
 
-  def resolve_game(game = %Rochambo.GameState{}, pid) do
-    with true <- both_players_moved?(game) do
-      game
-      |> determine_winner(pid)
-    else
-      false ->
-        {:pending, game}
+        game =
+          game
+          |> set_player(moved_player, slot)
+          |> determine_outcome()
 
-      {:error, reason} ->
-        {:error, reason}
+        {:ok, game}
+
+      {:error, msg} ->
+        {:error, msg}
     end
   end
 
@@ -144,10 +142,71 @@ defmodule Rochambo.GameState do
   end
 
   def both_players_moved?(%Rochambo.GameState{
-        player_one: %Player{current_move: move1},
-        player_two: %Player{current_move: move2}
+        player_one: %Player{move: move1},
+        player_two: %Player{move: move2}
       }) do
     move1 != nil && move2 != nil
+  end
+
+  def determine_outcome(
+        game = %Rochambo.GameState{
+          player_one: player1 = %Player{move: move1},
+          player_two: player2 = %Player{move: move2}
+        }
+      )
+      when not is_nil(move1) and not is_nil(move2) do
+    win_list = [
+      {:rock, :scissors},
+      {:scissors, :paper},
+      {:paper, :rock}
+    ]
+
+    cond do
+      {move1, move2} in win_list ->
+        game
+        |> set_outcome({player1, :player_one}, {player2, :player_two})
+
+      {move2, move1} in win_list ->
+        game
+        |> set_outcome({player2, :player_two}, {player1, :player_one})
+
+      move1 == move2 ->
+        set_draw(game, player1, player2)
+    end
+  end
+
+  def determine_outcome(game = %Rochambo.GameState{}) do
+    game
+  end
+
+  def get_player_outcome(game, pid) do
+    case get_player_by_pid(game, pid) do
+      {:ok, %Player{outcome: outcome}, _slot} when not is_nil(outcome) ->
+        game = end_round(game, pid)
+        {:ok, outcome, game}
+
+      {:ok, %Player{outcome: nil}, _slot} ->
+        {:pending, game}
+
+      {:error, msg} ->
+        {:error, msg}
+    end
+  end
+
+  defp set_outcome(game, {winner, slot1}, {loser, slot2}) do
+    winner = winner |> Player.set_winner()
+    loser = loser |> Player.set_loser()
+
+    game
+    |> set_player(winner, slot1)
+    |> set_player(loser, slot2)
+    |> add_round_winner(winner.identifier)
+  end
+
+  defp set_draw(game, player1, player2) do
+    game
+    |> set_player(player1 |> Player.set_draw(), :player_one)
+    |> set_player(player2 |> Player.set_draw(), :player_two)
   end
 
   defp has_player_one?(%Rochambo.GameState{player_one: player}) do
@@ -172,75 +231,13 @@ defmodule Rochambo.GameState do
     %Rochambo.GameState{game | state: state}
   end
 
-  defp determine_winner(
-         game = %Rochambo.GameState{
-           player_one: %Player{current_move: move1},
-           player_two: %Player{current_move: move2}
-         },
-         pid
-       )
-       when is_nil(move1) and is_nil(move2) do
-    {:ok, win_lose_draw(game, pid), game}
-  end
-
-  defp determine_winner(
-         game = %Rochambo.GameState{
-           player_one: %Player{identifier: id1, current_move: move1},
-           player_two: %Player{identifier: id2, current_move: move2}
-         },
-         pid
-       )
-       when not is_nil(move1) and not is_nil(move2) do
-    win_list = [
-      {:rock, :scissors},
-      {:scissors, :paper},
-      {:paper, :rock}
-    ]
-
-    cond do
-      {move1, move2} in win_list ->
-        game = process_winner(game, id1)
-        {:ok, win_lose_draw(game, pid), game}
-
-      {move2, move1} in win_list ->
-        game = process_winner(game, id2)
-        {:ok, win_lose_draw(game, pid), game}
-
-      move1 == move2 ->
-        game = process_winner(game, nil)
-        {:ok, win_lose_draw(game, pid), game}
-    end
-  end
-
-  defp process_winner(game, pid) do
+  defp end_round(game, pid) do
     case get_player_by_pid(game, pid) do
       {:ok, player, slot} ->
-        set_player(game, Player.increase_score(player), slot)
-        |> end_round(pid)
+        player = player |> Player.reset_move() |> Player.reset_outcome()
 
-      {:error, _} ->
-        end_round(game, pid)
-    end
-  end
-
-  defp end_round(game, pid) do
-    game
-    |> add_round_winner(pid)
-    |> reset_player_moves()
-  end
-
-  defp win_lose_draw(%Rochambo.GameState{round_winners: rounds}, pid) do
-    winner = List.last(rounds)
-
-    cond do
-      winner == pid ->
-        "you won!"
-
-      winner == nil ->
-        "draw"
-
-      true ->
-        "you lost!"
+        game
+        |> set_player(player, slot)
     end
   end
 end

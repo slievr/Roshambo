@@ -72,8 +72,6 @@ defmodule RochamboTest do
     assert Server.play(:scissors) =~ "you lost!"
     assert Server.scores() == %{"bob" => 1, "michael" => 0}
 
-    Process.sleep(100)
-
     assert Server.play(:paper) =~ "draw"
   end
 
